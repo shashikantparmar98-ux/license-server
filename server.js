@@ -8,10 +8,10 @@ app.use(express.json());
 // 🔐 ADMIN SECRET (CHANGE THIS!)
 const ADMIN_KEY = "SHASHIKANT_SUPER_SECRET_555";
 
-// 🔑 In-memory database (for now)
+// 🔑 In-memory database (simple version)
 let keys = [
-  { key: "ABCD-1234-EFGH-5678", used: false, deviceId: null },
-  { key: "WXYZ-9999-TEST-0001", used: false, deviceId: null }
+  { key: "ABCD-1234-EFGH-5678", used: false },
+  { key: "WXYZ-9999-TEST-0001", used: false }
 ];
 
 // 🔥 Key Generator
@@ -27,6 +27,7 @@ function generateKey() {
   return `${part()}-${part()}-${part()}-${part()}`;
 }
 
+// ✅ ACTIVATE API (SIMPLE VERSION)
 app.post("/activate", (req, res) => {
   const { key } = req.body;
 
@@ -42,17 +43,8 @@ app.post("/activate", (req, res) => {
 
   found.used = true;
 
-  res.json({ success: true });
+  return res.json({ success: true });
 });
-
-  // ❌ Used on another device
-  console.log("❌ Key already used on another device");
-
-  return res.json({
-    success: false,
-    message: "Key already used on another device"
-  });
-
 
 // 🔐 SECURE GENERATE API (ADMIN ONLY)
 app.get("/generate", (req, res) => {
@@ -69,8 +61,7 @@ app.get("/generate", (req, res) => {
 
   keys.push({
     key: newKey,
-    used: false,
-    deviceId: null
+    used: false
   });
 
   console.log("🆕 New key generated:", newKey);
