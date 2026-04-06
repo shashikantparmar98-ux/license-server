@@ -27,39 +27,27 @@ function generateKey() {
   return `${part()}-${part()}-${part()}-${part()}`;
 }
 
-// 🔍 VERIFY API (Device Lock Enabled)
 app.post("/verify", (req, res) => {
-  console.log("👉 Incoming Request:", req.body);
+  console.log("📩 Incoming Request:", req.body);
 
-  const { key, deviceId } = req.body;
+  const { key } = req.body;
 
-  if (!key || !deviceId) {
-    return res.json({ success: false, message: "Missing key or deviceId" });
+  if (!key) {
+    return res.json({ success: false, message: "Missing key" });
   }
 
   const found = keys.find(k => k.key === key);
 
   if (!found) {
-    console.log("❌ Invalid key:", key);
+    console.log("✘ Invalid key:", key);
     return res.json({ success: false, message: "Invalid key" });
   }
 
-  // 🔓 First time activation
-  if (!found.used) {
-    found.used = true;
-    found.deviceId = deviceId;
+  // ✅ Allow any device (temporary)
+  return res.json({ success: true });
+});
 
-    console.log("✅ First activation:", key);
-    console.log("🔒 Locked to device:", deviceId);
-
-    return res.json({ success: true });
-  }
-
-  // 🔁 Same device reuse
-  if (found.deviceId === deviceId) {
-    console.log("✅ Reuse on same device");
-    return res.json({ success: true });
-  }
+  
 
   // ❌ Used on another device
   console.log("❌ Key already used on another device");
