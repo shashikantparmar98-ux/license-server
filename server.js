@@ -27,27 +27,23 @@ function generateKey() {
   return `${part()}-${part()}-${part()}-${part()}`;
 }
 
-app.post("/verify", (req, res) => {
-  console.log("📩 Incoming Request:", req.body);
-
+app.post("/activate", (req, res) => {
   const { key } = req.body;
-
-  if (!key) {
-    return res.json({ success: false, message: "Missing key" });
-  }
 
   const found = keys.find(k => k.key === key);
 
   if (!found) {
-    console.log("✘ Invalid key:", key);
     return res.json({ success: false, message: "Invalid key" });
   }
 
-  // ✅ Allow any device (temporary)
-  return res.json({ success: true });
-});
+  if (found.used) {
+    return res.json({ success: false, message: "Key already used" });
+  }
 
-  
+  found.used = true;
+
+  res.json({ success: true });
+});
 
   // ❌ Used on another device
   console.log("❌ Key already used on another device");
@@ -56,7 +52,7 @@ app.post("/verify", (req, res) => {
     success: false,
     message: "Key already used on another device"
   });
-});
+
 
 // 🔐 SECURE GENERATE API (ADMIN ONLY)
 app.get("/generate", (req, res) => {
