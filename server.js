@@ -1,27 +1,31 @@
 
 const express = require("express");
 const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// 📄 License database file
+const LICENSE_FILE = path.join(__dirname, "licenses.json");
+
+// 📖 Load licenses from file
+function loadKeys() {
+  return JSON.parse(fs.readFileSync(LICENSE_FILE, "utf8"));
+}
+
+// 💾 Save licenses to file
+function saveKeys(keys) {
+  fs.writeFileSync(LICENSE_FILE, JSON.stringify(keys, null, 2));
+}
+
 // 🔐 ADMIN SECRET (CHANGE THIS!)
 const ADMIN_KEY = "SHASHIKANT_SUPER_SECRET_555";
 
 // 🔑 In-memory database (simple version)
-let keys = [
-  {
-    key: "ABCD-1234-EFGH-5678",
-    used: false,
-    deviceId: null
-  },
-  {
-    key: "WXYZ-9999-TEST-0001",
-    used: false,
-    deviceId: null
-  }
-];
+let keys = loadKeys();
 
 // 🔥 Key Generator
 function generateKey() {
@@ -51,10 +55,12 @@ if (!deviceId) {
     return res.json({ success: false, message: "Invalid key" });
   }
 
- // 🔹 First activation
+// 🔹 First activation
 if (!found.used) {
   found.used = true;
   found.deviceId = deviceId;
+
+  saveKeys(keys);   // 💾 Save changes
 
   return res.json({
     success: true
@@ -94,7 +100,9 @@ app.get("/generate", (req, res) => {
   deviceId: null
 });
 
-  console.log("🆕 New key generated:", newKey);
+saveKeys(keys);   // 💾 Save changes
+
+console.log("🆕 New key generated:", newKey);
 
   res.json({
     success: true,
