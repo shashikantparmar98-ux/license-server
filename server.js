@@ -1,3 +1,4 @@
+
 const express = require("express");
 const cors = require("cors");
 
@@ -10,8 +11,16 @@ const ADMIN_KEY = "SHASHIKANT_SUPER_SECRET_555";
 
 // 🔑 In-memory database (simple version)
 let keys = [
-  { key: "ABCD-1234-EFGH-5678", used: false },
-  { key: "WXYZ-9999-TEST-0001", used: false }
+  {
+    key: "ABCD-1234-EFGH-5678",
+    used: false,
+    deviceId: null
+  },
+  {
+    key: "WXYZ-9999-TEST-0001",
+    used: false,
+    deviceId: null
+  }
 ];
 
 // 🔥 Key Generator
@@ -29,21 +38,41 @@ function generateKey() {
 
 // ✅ ACTIVATE API (SIMPLE VERSION)
 app.post("/activate", (req, res) => {
-  const { key } = req.body;
-
+  const { key, deviceId } = req.body;
+if (!deviceId) {
+  return res.json({
+    success: false,
+    message: "Device ID missing."
+  });
+}
   const found = keys.find(k => k.key === key);
 
   if (!found) {
     return res.json({ success: false, message: "Invalid key" });
   }
 
-  if (found.used) {
-    return res.json({ success: false, message: "Key already used" });
-  }
-
+ // 🔹 First activation
+if (!found.used) {
   found.used = true;
+  found.deviceId = deviceId;
 
-  return res.json({ success: true });
+  return res.json({
+    success: true
+  });
+}
+
+// 🔹 Same computer
+if (found.deviceId === deviceId) {
+  return res.json({
+    success: true
+  });
+}
+
+// 🔹 Different computer
+return res.json({
+  success: false,
+  message: "This license is already activated on another computer."
+});
 });
 
 // 🔐 SECURE GENERATE API (ADMIN ONLY)
@@ -60,9 +89,10 @@ app.get("/generate", (req, res) => {
   const newKey = generateKey();
 
   keys.push({
-    key: newKey,
-    used: false
-  });
+  key: newKey,
+  used: false,
+  deviceId: null
+});
 
   console.log("🆕 New key generated:", newKey);
 
