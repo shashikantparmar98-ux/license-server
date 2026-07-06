@@ -1,7 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const fs = require("fs");
-const path = require("path");
+
 const { Pool } = require("pg");
 
 const app = express();
@@ -26,24 +25,46 @@ pool.connect()
     console.error("❌ PostgreSQL connection failed:", err);
   });
 
-// 📄 License database file
-const LICENSE_FILE = path.join(__dirname, "licenses.json");
 
-// 📖 Load licenses from file
-function loadKeys() {
-  return JSON.parse(fs.readFileSync(LICENSE_FILE, "utf8"));
+async function loadKeysFromDB() {
+  const result = await pool.query("SELECT * FROM licenses");
+
+  return result.rows.map(row => ({
+    key: row.license_key,
+    used: row.used,
+    deviceId: row.device_id
+  }));
 }
 
-// 💾 Save licenses to file
-function saveKeys(keys) {
-  fs.writeFileSync(LICENSE_FILE, JSON.stringify(keys, null, 2));
+async function addKeyToDB(key) {
+  await pool.query(
+    "INSERT INTO licenses (license_key) VALUES ($1)",
+    [key]
+  );
 }
+
+async function activateKeyInDB(key, deviceId) {
+  await pool.query(
+    `UPDATE licenses
+     SET used = TRUE,
+         device_id = $1
+     WHERE license_key = $2`,
+    [deviceId, key]
+  );
+}
+
+
 
 // 🔐 ADMIN SECRET (CHANGE THIS!)
 const ADMIN_KEY = "SHASHIKANT_SUPER_SECRET_555";
 
 // 🔑 In-memory database (simple version)
-let keys = loadKeys();
+let keys = [];
+
+(async () => {
+  keys = await loadKeysFromDB();
+  console.log("✅ Loaded", keys.length, "license(s) from PostgreSQL");
+})();
 
 // 🔥 Key Generator
 function generateKey() {
@@ -59,8 +80,10 @@ function generateKey() {
 }
 
 // ✅ ACTIVATE API (SIMPLE VERSION)
-app.post("/activate", (req, res) => {
+app.post("/activate", async (req, res) => {
   const { key, deviceId } = req.body;
+keys = await loadKeysFromDB();
+
 if (!deviceId) {
   return res.json({
     success: false,
@@ -73,12 +96,11 @@ if (!deviceId) {
     return res.json({ success: false, message: "Invalid key" });
   }
 
-// 🔹 First activation
 if (!found.used) {
-  found.used = true;
-  found.deviceId = deviceId;
 
-  saveKeys(keys);   // 💾 Save changes
+  await activateKeyInDB(key, deviceId);
+
+  keys = await loadKeysFromDB();
 
   return res.json({
     success: true
@@ -100,7 +122,7 @@ return res.json({
 });
 
 // 🔐 SECURE GENERATE API (ADMIN ONLY)
-app.get("/generate", (req, res) => {
+app.get("/generate", async (req, res) => {
   const admin = req.query.admin;
 
   if (admin !== ADMIN_KEY) {
@@ -112,16 +134,11 @@ app.get("/generate", (req, res) => {
 
   const newKey = generateKey();
 
-  keys.push({
-  key: newKey,
-  used: false,
-  deviceId: null
-});
+await addKeyToDB(newKey);
 
-saveKeys(keys);   // 💾 Save changes
+keys = await loadKeysFromDB();
 
 console.log("🆕 New key generated:", newKey);
-
   res.json({
     success: true,
     key: newKey
