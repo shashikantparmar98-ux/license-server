@@ -26,15 +26,7 @@ pool.connect()
   });
 
 
-async function loadKeysFromDB() {
-  const result = await pool.query("SELECT * FROM licenses");
 
-  return result.rows.map(row => ({
-    key: row.license_key,
-    used: row.used,
-    deviceId: row.device_id
-  }));
-}
 
 async function addKeyToDB(key) {
   await pool.query(
@@ -53,18 +45,18 @@ async function activateKeyInDB(key, deviceId) {
   );
 }
 
+async function getLicense(key) {
+  const result = await pool.query(
+    "SELECT * FROM licenses WHERE license_key = $1",
+    [key]
+  );
 
+  return result.rows[0];
+}
 
 // 🔐 ADMIN SECRET (CHANGE THIS!)
 const ADMIN_KEY = "SHASHIKANT_SUPER_SECRET_555";
 
-// 🔑 In-memory database (simple version)
-let keys = [];
-
-(async () => {
-  keys = await loadKeysFromDB();
-  console.log("✅ Loaded", keys.length, "license(s) from PostgreSQL");
-})();
 
 // 🔥 Key Generator
 function generateKey() {
@@ -82,7 +74,6 @@ function generateKey() {
 // ✅ ACTIVATE API (SIMPLE VERSION)
 app.post("/activate", async (req, res) => {
   const { key, deviceId } = req.body;
-keys = await loadKeysFromDB();
 
 if (!deviceId) {
   return res.json({
@@ -90,7 +81,7 @@ if (!deviceId) {
     message: "Device ID missing."
   });
 }
-  const found = keys.find(k => k.key === key);
+  const found = await getLicense(key);
 
   if (!found) {
     return res.json({ success: false, message: "Invalid key" });
@@ -100,7 +91,7 @@ if (!found.used) {
 
   await activateKeyInDB(key, deviceId);
 
-  keys = await loadKeysFromDB();
+  
 
   return res.json({
     success: true
@@ -108,7 +99,7 @@ if (!found.used) {
 }
 
 // 🔹 Same computer
-if (found.deviceId === deviceId) {
+if (found.device_id === deviceId) {
   return res.json({
     success: true
   });
@@ -136,7 +127,6 @@ app.get("/generate", async (req, res) => {
 
 await addKeyToDB(newKey);
 
-keys = await loadKeysFromDB();
 
 console.log("🆕 New key generated:", newKey);
   res.json({
