@@ -3,10 +3,29 @@ const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
+const { Pool } = require("pg");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// PostgreSQL connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+// Test PostgreSQL connection
+pool.connect()
+  .then(client => {
+    console.log("✅ Connected to PostgreSQL");
+    client.release();
+  })
+  .catch(err => {
+    console.error("❌ PostgreSQL connection failed:", err);
+  });
 
 // 📄 License database file
 const LICENSE_FILE = path.join(__dirname, "licenses.json");
