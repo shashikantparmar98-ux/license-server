@@ -55,8 +55,7 @@ async function getLicense(key) {
 }
 
 // 🔐 ADMIN SECRET (CHANGE THIS!)
-const ADMIN_KEY = "SHASHIKANT_SUPER_SECRET_555";
-
+const ADMIN_KEY = process.env.ADMIN_KEY;
 
 // 🔥 Key Generator
 function generateKey() {
