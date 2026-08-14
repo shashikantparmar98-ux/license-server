@@ -25,7 +25,23 @@ pool.connect()
     console.error("❌ PostgreSQL connection failed:", err);
   });
 
+// 🎁 DEMO TRIAL TABLE
+async function createDemoTable() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS demo_trials (
+        device_id TEXT PRIMARY KEY,
+        started_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
 
+    console.log("✅ Demo trials table ready");
+  } catch (err) {
+    console.error("❌ Failed to create demo_trials table:", err);
+  }
+}
+
+createDemoTable();
 
 
 async function addKeyToDB(key) {
@@ -53,6 +69,85 @@ async function getLicense(key) {
 
   return result.rows[0];
 }
+
+// 🎁 DEMO TRIAL API
+const DEMO_DURATION_MINUTES = 2; // TEST ONLY — change to 60 for final version
+
+app.post("/demo", async (req, res) => {
+  try {
+    const { deviceId } = req.body;
+
+    if (!deviceId) {
+      return res.json({
+        success: false,
+        message: "Device ID missing."
+      });
+    }
+
+    // Check whether this device has already started a demo
+    const existing = await pool.query(
+      "SELECT started_at FROM demo_trials WHERE device_id = $1",
+      [deviceId]
+    );
+
+    // 🆕 First demo launch
+    if (existing.rows.length === 0) {
+      await pool.query(
+        "INSERT INTO demo_trials (device_id) VALUES ($1)",
+        [deviceId]
+      );
+
+      console.log("🎁 New demo started:", deviceId);
+
+      return res.json({
+        success: true,
+        remainingSeconds: DEMO_DURATION_MINUTES * 60
+      });
+    }
+
+    // ⏱️ Existing demo
+    const result = await pool.query(
+      `
+      SELECT
+        EXTRACT(EPOCH FROM (NOW() - started_at)) AS elapsed_seconds
+      FROM demo_trials
+      WHERE device_id = $1
+      `,
+      [deviceId]
+    );
+
+    const elapsedSeconds = Number(result.rows[0].elapsed_seconds);
+    const totalSeconds = DEMO_DURATION_MINUTES * 60;
+    const remainingSeconds = Math.max(
+      0,
+      totalSeconds - elapsedSeconds
+    );
+
+    // ❌ Demo expired
+    if (remainingSeconds <= 0) {
+      return res.json({
+        success: false,
+        expired: true,
+        message: "Demo period has expired."
+      });
+    }
+
+    // ✅ Demo still valid
+    return res.json({
+      success: true,
+      remainingSeconds: Math.floor(remainingSeconds)
+    });
+
+  } catch (err) {
+    console.error("❌ Demo API error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error."
+    });
+  }
+});
+
 
 // 🔐 ADMIN SECRET (CHANGE THIS!)
 const ADMIN_KEY = process.env.ADMIN_KEY;
