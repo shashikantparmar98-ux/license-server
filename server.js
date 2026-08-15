@@ -70,9 +70,11 @@ async function getLicense(key) {
   return result.rows[0];
 }
 
-// 🎁 DEMO TRIAL API
-const DEMO_DURATION_MINUTES = 2; // TEST ONLY — change to 60 for final version
+// 🎁 DEMO TRIAL SETTINGS
+const DEMO_DURATION_DAYS = 7;
+const DEMO_DURATION_MINUTES = DEMO_DURATION_DAYS * 24 * 60;
 
+// 🎁 DEMO TRIAL API
 app.post("/demo", async (req, res) => {
   try {
     const { deviceId } = req.body;
